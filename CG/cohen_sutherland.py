@@ -6,6 +6,8 @@ Cohen-Sutherland裁剪算法
 '''
 import matplotlib.pyplot as plt
 
+UPPERMOST = 999999
+
 
 class Point:
 
@@ -43,32 +45,33 @@ class Line:
         # k = △y / △x，b代入起始点求解，若直线垂直x轴，则单独讨论
         self.k = (self.end.y - self.start.y) / (self.end.x - self.start.x) \
             if self.end.x - self.start.x != 0 \
-            else None
+            else UPPERMOST
         self.b = self.start.y - self.start.x * self.k \
-            if self.k is not None \
-            else None
-        # ymin：直线最小纵坐标 ymax：直线最大纵坐标
+            if self.k != UPPERMOST \
+            else UPPERMOST
+        # ymin：直线最小纵坐标 ymax：直线最大纵坐标 xmin：直线最小横坐标 xmax：直线最大横坐标
         self.ymin = self.start.y if self.start.y < self.end.y else self.end.y
         self.ymax = self.start.y if self.start.y > self.end.y else self.end.y
+        self.xmin = self.start.x if self.start.x < self.end.x else self.end.x
+        self.xmax = self.start.x if self.start.x > self.end.x else self.end.x
 
     def draw(self):
         plt.plot([self.start.x, self.end.x], [self.start.y, self.end.y], '--')
 
-    def get_node(self, other_line):
-        node_x = (self.k - other_line.k) / (other_line.b - self.b)
-        node_y = self.k * node_x + self.b
-        if self.ymin <= node_y <= self.ymax:
-            return Point(node_x, node_y)
-        else:
-            return None
+    def get_edge_node(self, other_line):
+        pass
 
     def __str__(self):
-        if self.k is None:
+        if self.k == UPPERMOST:
             line_info = '直线方程为：x={}，起点({},{})，终点({},{})'\
-                        .format(self.start.x, self.start.x, self.start.y, self.end.x, self.end.y)
+                        .format(self.start.x,
+                                self.start.x, self.start.y,
+                                self.end.x, self.end.y)
         else:
             line_info = '直线方程为：y={}x+{}，起点({},{})，终点({},{})'\
-                        .format(self.k, self.b, self.start.x, self.start.y, self.end.x, self.end.y)
+                        .format(self.k, self.b,
+                                self.start.x, self.start.y,
+                                self.end.x, self.end.y)
         return line_info
 
 
@@ -80,7 +83,6 @@ class CuttingBox:
         x1, y1 = map(int, input('请输入裁剪框左上角顶点横、纵坐标（用空格隔开）：').split())
         x2, y2 = map(int, input('请输入裁剪框右下角顶点横、纵坐标（用空格隔开）：').split())
         self.section = [x1, x2, y2, y1]
-        print(self.section)
         # 顶点顺序：左上，右上，右下，左下
         point1 = Point(x1, y1)
         point2 = Point(x2, y1)
@@ -125,10 +127,16 @@ if __name__ == '__main__':
     cbox = CuttingBox()
     cbox.draw()
     cline.start.set_pos_code(cbox.section)
-    print(cline.start)
-    print(cline.start.pos_code)
     cline.end.set_pos_code(cbox.section)
-    print(cline.end)
-    print(cline.end.pos_code)
+    node_list = []
+    if cline.start.pos_code == cline.end.pos_code == 0:
+        plt.plot([xs, xe], [ys, ye], '-', c='r')
+    else:
+        for i in range(4):
+            temp_l = cbox.line_list[i].get_edge_node(cline)
+            if temp_l is not None:
+                node_list.append(temp_l)
+    for n in node_list:
+        print(n)
     plt.grid(color='grey')
     plt.show()
