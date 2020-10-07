@@ -6,137 +6,90 @@ Cohen-Sutherland裁剪算法
 '''
 import matplotlib.pyplot as plt
 
-UPPERMOST = 999999
+LEFT = 1
+RIGHT = 2
+BOTTOM = 4
+TOP = 8
+
+border = {'left': 0, 'right': 0, 'bottom': 0, 'top': 0}
+line = {'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0}
 
 
-class Point:
-
-    def __init__(self, a, b):
-        self.x = a
-        self.y = b
-        self.pos_code = 0
-
-    def draw(self):
-        plt.plot([self.x], [self.y], 'o')
-
-    def set_pos_code(self, sec):
-        # sec为区间列表，下标为0-3的项分别为裁剪框xmin， xmax， ymin， ymax
-        # bin_pos_code为pos_code的二进制形式，按位倒序存储在列表中
-        bin_pos_code = []
-        bin_pos_code.append(1) if self.x < sec[0] else bin_pos_code.append(0)
-        bin_pos_code.append(1) if self.x > sec[1] else bin_pos_code.append(0)
-        bin_pos_code.append(1) if self.y < sec[2] else bin_pos_code.append(0)
-        bin_pos_code.append(1) if self.y > sec[3] else bin_pos_code.append(0)
-        print(bin_pos_code)
-        # 转化为十进制
-        for i in range(4):
-            self.pos_code += bin_pos_code[i] * (2 ** i)
-
-    def __str__(self):
-        point_info = '({}, {})'.format(self.x, self.y)
-        return point_info
+def draw_cutting_box():
+    lt = [border['left'], border['top']]
+    rt = [border['right'], border['top']]
+    lb = [border['left'], border['bottom']]
+    rb = [border['right'], border['bottom']]
+    plt.plot([lt[0], rt[0]], [lt[1], rt[1]], '--', c='k')
+    plt.plot([rt[0], rb[0]], [rt[1], rb[1]], '--', c='k')
+    plt.plot([rb[0], lb[0]], [rb[1], lb[1]], '--', c='k')
+    plt.plot([lb[0], lt[0]], [lb[1], lt[1]], '--', c='k')
 
 
-class Line:
+def draw_line(l, style, color):
+    plt.plot([l['x1'], l['x2']],
+             [l['y1'], l['y2']],
+             style, c=color)
 
-    def __init__(self, point1, point2):
-        self.start = point1
-        self.end = point2
-        # k = △y / △x，b代入起始点求解，若直线垂直x轴，则单独讨论
-        self.k = (self.end.y - self.start.y) / (self.end.x - self.start.x) \
-            if self.end.x - self.start.x != 0 \
-            else UPPERMOST
-        self.b = self.start.y - self.start.x * self.k \
-            if self.k != UPPERMOST \
-            else UPPERMOST
-        # ymin：直线最小纵坐标 ymax：直线最大纵坐标 xmin：直线最小横坐标 xmax：直线最大横坐标
-        self.ymin = self.start.y if self.start.y < self.end.y else self.end.y
-        self.ymax = self.start.y if self.start.y > self.end.y else self.end.y
-        self.xmin = self.start.x if self.start.x < self.end.x else self.end.x
-        self.xmax = self.start.x if self.start.x > self.end.x else self.end.x
 
-    def draw(self):
-        plt.plot([self.start.x, self.end.x], [self.start.y, self.end.y], '--')
+def get_pos_code(x, y):
+    code = 0
+    if x < border['left']:
+        code += LEFT
+    if x > border['right']:
+        code += RIGHT
+    if y < border['bottom']:
+        code += BOTTOM
+    if y > border['top']:
+        code += TOP
+    return code
 
-    def get_edge_node(self, other_line):
-        pass
 
-    def __str__(self):
-        if self.k == UPPERMOST:
-            line_info = '直线方程为：x={}，起点({},{})，终点({},{})'\
-                        .format(self.start.x,
-                                self.start.x, self.start.y,
-                                self.end.x, self.end.y)
+def cutting(l):
+    draw_line(l, '--', 'b')
+    code1 = get_pos_code(l['x1'], l['y1'])
+    code2 = get_pos_code(l['x2'], l['y2'])
+    while code1 != 0 or code2 != 0:
+        if code1 & code2 != 0:
+            return
+        code_temp = code1 if code1 != 0 else code2
+
+        if LEFT & code_temp != 0:
+            xt = border['left']
+            yt = l['y1'] + (l['y2'] - l['y1']) * \
+                 (border['left'] - l['x1']) / (l['x2'] - l['x1'])
+        elif RIGHT & code_temp != 0:
+            xt = border['right']
+            yt = l['y1'] + (l['y2'] - l['y1']) * \
+                 (border['right'] - l['x1']) / (l['x2'] - l['x1'])
+        elif BOTTOM & code_temp != 0:
+            yt = border['bottom']
+            xt = l['x1'] + (l['x2'] - l['x1']) * \
+                 (border['bottom'] - l['y1']) / (l['y2'] - l['y1'])
+        elif TOP & code_temp != 0:
+            yt = border['top']
+            xt = l['x1'] + (l['x2'] - l['x1']) * \
+                 (border['top'] - l['y1']) / (l['y2'] - l['y1'])
+
+        if code_temp == code1:
+            l['x1'] = xt
+            l['y1'] = yt
+            code1 = get_pos_code(xt, yt)
         else:
-            line_info = '直线方程为：y={}x+{}，起点({},{})，终点({},{})'\
-                        .format(self.k, self.b,
-                                self.start.x, self.start.y,
-                                self.end.x, self.end.y)
-        return line_info
-
-
-class CuttingBox:
-    point_list = []
-    line_list = []
-
-    def __init__(self):
-        x1, y1 = map(int, input('请输入裁剪框左上角顶点横、纵坐标（用空格隔开）：').split())
-        x2, y2 = map(int, input('请输入裁剪框右下角顶点横、纵坐标（用空格隔开）：').split())
-        self.section = [x1, x2, y2, y1]
-        # 顶点顺序：左上，右上，右下，左下
-        point1 = Point(x1, y1)
-        point2 = Point(x2, y1)
-        point3 = Point(x2, y2)
-        point4 = Point(x1, y2)
-        # 边顺序：上右下左
-        line1 = Line(point1, point2)
-        line2 = Line(point2, point3)
-        line3 = Line(point3, point4)
-        line4 = Line(point4, point1)
-
-        self.point_list.append(point1)
-        self.point_list.append(point2)
-        self.point_list.append(point3)
-        self.point_list.append(point4)
-
-        self.line_list.append(line1)
-        self.line_list.append(line2)
-        self.line_list.append(line3)
-        self.line_list.append(line4)
-
-    def draw(self):
-        for i in range(4):
-            self.point_list[i].draw()
-            self.line_list[i].draw()
-
-    def __str__(self):
-        box_info = "顶点集为：\n"
-        for i in range(4):
-            box_info += self.point_list[i] + ' '
-        box_info += "\n\n四条边方程分别为：\n"
-        for i in range(4):
-            box_info += self.line_list[i] + '\n'
-        return box_info
+            l['x2'] = xt
+            l['y2'] = yt
+            code2 = get_pos_code(xt, yt)
+    print(l)
+    draw_line(l, '-', 'r')
 
 
 if __name__ == '__main__':
-    xs, ys = map(int, input('请输入被裁剪直线起点横、纵坐标（用空格隔开）：').split())
-    xe, ye = map(int, input('请输入被裁剪直线终点横、纵坐标（用空格隔开）：').split())
-    cline = Line(Point(xs, ys), Point(xe, ye))
-    cline.draw()
-    cbox = CuttingBox()
-    cbox.draw()
-    cline.start.set_pos_code(cbox.section)
-    cline.end.set_pos_code(cbox.section)
-    node_list = []
-    if cline.start.pos_code == cline.end.pos_code == 0:
-        plt.plot([xs, xe], [ys, ye], '-', c='r')
-    else:
-        for i in range(4):
-            temp_l = cbox.line_list[i].get_edge_node(cline)
-            if temp_l is not None:
-                node_list.append(temp_l)
-    for n in node_list:
-        print(n)
+    line['x1'], line['y1'] = map(int, input('请输入待裁剪直线起点横、纵坐标（用空格隔开）：').split())
+    line['x2'], line['y2'] = map(int, input('请输入待裁剪直线终点横、纵坐标（用空格隔开）：').split())
+    border['left'], border['right'], border['bottom'], border['top'] = \
+        map(int, input('请输入裁剪框边界值，顺序为左右下上：').split())
+    print(border)
+    draw_cutting_box()
+    cutting(line)
     plt.grid(color='grey')
     plt.show()
