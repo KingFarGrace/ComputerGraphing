@@ -65,7 +65,7 @@ class Line:
     def get_delta_x(self):
         # 求步长△x
         if self.k is not None and self.b is not None:
-            self.delta_x = (self.end.x - self.start.x) / (self.end.y - self.start.y)
+            self.delta_x = -self.k
         elif self.k is None:
             self.delta_x = 0
         else:
